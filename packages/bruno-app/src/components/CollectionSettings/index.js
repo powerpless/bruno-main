@@ -15,6 +15,7 @@ import StyledWrapper from './StyledWrapper';
 import Vars from './Vars/index';
 import StatusDot from 'components/StatusDot';
 import Overview from './Overview/index';
+import GitSettings from './GitSettings';
 
 const CollectionSettings = ({ collection }) => {
   const dispatch = useDispatch();
@@ -94,6 +95,9 @@ const CollectionSettings = ({ collection }) => {
       case 'protobuf': {
         return <Protobuf collection={collection} />;
       }
+      case 'git': {
+        return <GitSettings collection={collection} />;
+      }
     }
   };
 
@@ -144,6 +148,9 @@ const CollectionSettings = ({ collection }) => {
         <div className={getTabClassname('protobuf')} role="tab" onClick={() => setTab('protobuf')}>
           Protobuf
           {protobufConfig.protoFiles && protobufConfig.protoFiles.length > 0 && <StatusDot />}
+        </div>
+        <div className={getTabClassname('git')} role="tab" onClick={() => setTab('git')}>
+          Git
         </div>
       </div>
       <section className="mt-4 h-full overflow-auto">{getTabPanel(tab)}</section>

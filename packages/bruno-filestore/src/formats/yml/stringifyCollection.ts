@@ -223,7 +223,7 @@ const stringifyCollection = (collectionRoot: any, brunoConfig: any): string => {
     // extensions
     oc.extensions = {};
 
-    const hasBrunoExtensions = brunoConfig.ignore?.length || hasPresets(brunoConfig);
+    const hasBrunoExtensions = brunoConfig.ignore?.length || hasPresets(brunoConfig) || brunoConfig.git;
 
     if (hasBrunoExtensions) {
       const brunoExtension: any = {};
@@ -246,6 +246,14 @@ const stringifyCollection = (collectionRoot: any, brunoConfig: any): string => {
         }
         brunoExtension.presets = {
           request: presetsRequest
+        };
+      }
+
+      // git auto-sync config
+      if (brunoConfig.git && typeof brunoConfig.git === 'object') {
+        brunoExtension.git = {
+          autoCommitPush: brunoConfig.git.autoCommitPush === true,
+          autoPull: brunoConfig.git.autoPull === true
         };
       }
 

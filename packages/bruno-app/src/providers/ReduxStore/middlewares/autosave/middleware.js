@@ -87,6 +87,7 @@ const actionsToIntercept = [
   'collections/updateCollectionClientCertificates',
   'collections/updateCollectionProtobuf',
   'collections/updateCollectionProxy',
+  'collections/updateCollectionGitConfig',
 
   // Environment draft actions
   'collections/setEnvironmentsDraft',

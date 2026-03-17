@@ -2245,6 +2245,22 @@ export const collectionsSlice = createSlice({
         set(collection, 'draft.brunoConfig.protobuf', action.payload.protobuf);
       }
     },
+    updateCollectionGitConfig: (state, action) => {
+      const collection = findCollectionByUid(state.collections, action.payload.collectionUid);
+
+      if (collection) {
+        if (!collection.draft) {
+          collection.draft = {
+            root: cloneDeep(collection.root),
+            brunoConfig: cloneDeep(collection.brunoConfig)
+          };
+        }
+        if (!collection.draft.brunoConfig) {
+          collection.draft.brunoConfig = cloneDeep(collection.brunoConfig);
+        }
+        set(collection, 'draft.brunoConfig.git', action.payload.git);
+      }
+    },
     addFolderHeader: (state, action) => {
       const collection = findCollectionByUid(state.collections, action.payload.collectionUid);
       const folder = collection ? findItemInCollection(collection, action.payload.folderUid) : null;
@@ -3660,6 +3676,7 @@ export const {
   updateCollectionClientCertificates,
   updateCollectionPresets,
   updateCollectionProtobuf,
+  updateCollectionGitConfig,
   collectionAddFileEvent,
   collectionAddDirectoryEvent,
   collectionChangeFileEvent,

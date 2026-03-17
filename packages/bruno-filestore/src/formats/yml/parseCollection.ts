@@ -43,6 +43,15 @@ const parseCollection = (ymlString: string): ParsedCollection => {
 
     // bruno-specific extensions
     const brunoExtensions = oc.extensions?.bruno as any;
+
+    // git auto-sync config
+    if (brunoExtensions?.git && typeof brunoExtensions.git === 'object') {
+      brunoConfig.git = {
+        autoCommitPush: brunoExtensions.git.autoCommitPush === true,
+        autoPull: brunoExtensions.git.autoPull === true
+      };
+    }
+
     if (Array.isArray(brunoExtensions?.scripts?.additionalContextRoots)) {
       const sanitizedRoots = brunoExtensions.scripts.additionalContextRoots
         .filter((item: any) => typeof item === 'string');
