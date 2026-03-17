@@ -338,6 +338,15 @@ const useIpcEvents = () => {
       dispatch(setGitVersion(val));
     });
 
+    const removeAutoGitStatusListener = ipcRenderer.on('main:auto-git-status', (val) => {
+      if (val.type === 'error') {
+        toast.error(`Git auto-sync: ${val.message}`);
+      }
+      if (val.type === 'pull-conflict') {
+        toast.error(`Git sync conflict: manual merge required`);
+      }
+    });
+
     return () => {
       removeCollectionTreeUpdateListener();
       removeApiSpecTreeUpdateListener();
@@ -371,6 +380,7 @@ const useIpcEvents = () => {
       removePersistentEnvVariablesUpdateListener();
       removeSystemResourcesListener();
       gitVersionListener();
+      removeAutoGitStatusListener();
     };
   }, [isElectron]);
 };

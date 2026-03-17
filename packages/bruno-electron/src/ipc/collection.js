@@ -27,6 +27,7 @@ const { cookiesStore } = require('../store/cookies');
 const { parseLargeRequestWithRedaction } = require('../utils/parse');
 const { wsClient } = require('../ipc/network/ws-event-handlers');
 const { hasSubDirectories } = require('../utils/filesystem');
+const { autoCommitAndPush } = require('../utils/auto-git');
 
 const {
   DEFAULT_GITIGNORE,
@@ -356,6 +357,9 @@ const registerRendererEventHandlers = (mainWindow, watcher) => {
 
       const content = await stringifyFolder(folderRoot, { format });
       await writeFile(folderFilePath, content);
+
+      // Fire-and-forget: auto commit and push
+      autoCommitAndPush(mainWindow, collectionPathname);
     } catch (error) {
       return Promise.reject(error);
     }
@@ -369,6 +373,9 @@ const registerRendererEventHandlers = (mainWindow, watcher) => {
       const content = await stringifyCollection(collectionRoot, brunoConfig, { format });
 
       await writeFile(path.join(collectionPathname, filename), content);
+
+      // Fire-and-forget: auto commit and push
+      autoCommitAndPush(mainWindow, collectionPathname);
     } catch (error) {
       console.error('Error in save-collection-root:', error);
       return Promise.reject(error);
@@ -414,6 +421,10 @@ const registerRendererEventHandlers = (mainWindow, watcher) => {
 
       const content = await stringifyRequestViaWorker(request, { format });
       await writeFile(pathname, content);
+
+      // Fire-and-forget: auto commit and push
+      const collectionPath = findCollectionPathByItemPath(pathname);
+      if (collectionPath) autoCommitAndPush(mainWindow, collectionPath);
     } catch (error) {
       return Promise.reject(error);
     }
@@ -482,6 +493,16 @@ const registerRendererEventHandlers = (mainWindow, watcher) => {
 
         const content = await stringifyRequestViaWorker(request, { format: r.format });
         await writeFile(pathname, content);
+      }
+
+      // Fire-and-forget: auto commit and push for each unique collection
+      const uniqueCollectionPaths = new Set();
+      for (const r of requestsToSave) {
+        const cp = findCollectionPathByItemPath(r.pathname);
+        if (cp) uniqueCollectionPaths.add(cp);
+      }
+      for (const cp of uniqueCollectionPaths) {
+        autoCommitAndPush(mainWindow, cp);
       }
     } catch (error) {
       return Promise.reject(error);

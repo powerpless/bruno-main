@@ -57,10 +57,12 @@ const { safeParseJSON, safeStringifyJSON } = require('./utils/common');
 const { getDomainsWithCookies } = require('./utils/cookies');
 const { cookiesStore } = require('./store/cookies');
 const SystemMonitor = require('./app/system-monitor');
+const GitAutoSync = require('./app/git-auto-sync');
 const { getIsRunningInRosetta } = require('./utils/arch');
 const { handleAppProtocolUrl, getAppProtocolUrlFromArgv } = require('./utils/deeplink');
 
 const systemMonitor = new SystemMonitor();
+const gitAutoSync = new GitAutoSync();
 const terminalManager = new TerminalManager();
 
 const workspaceWatcher = new WorkspaceWatcher();
@@ -451,6 +453,9 @@ app.on('ready', async () => {
   registerSystemMonitorIpc(mainWindow, systemMonitor);
   registerGitIpc(mainWindow);
   registerOpenAPISyncIpc(mainWindow);
+
+  // Start auto git sync polling (every 2 minutes)
+  gitAutoSync.start(mainWindow, 120000);
 });
 
 // Quit the app once all windows are closed
@@ -468,6 +473,7 @@ app.on('before-quit', () => {
 
   // Stop system monitoring
   systemMonitor.stop();
+  gitAutoSync.stop();
 
   try {
     terminalManager.killAll();
