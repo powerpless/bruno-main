@@ -110,7 +110,8 @@ const CloneGitRepository = ({ onClose, onFinish, collectionRepositoryUrl = null 
     enableReinitialize: true,
     initialValues: {
       repositoryUrl: collectionRepositoryUrl || '',
-      collectionLocation: defaultLocation
+      collectionLocation: defaultLocation,
+      collectionPath: ''
     },
     validationSchema: Yup.object({
       repositoryUrl: Yup.string().required('Repository URL is required'),
@@ -120,18 +121,19 @@ const CloneGitRepository = ({ onClose, onFinish, collectionRepositoryUrl = null 
       try {
         setView('progress');
         cloneInProgress();
-        const { repositoryUrl, collectionLocation } = values;
+        const { repositoryUrl, collectionLocation, collectionPath } = values;
 
         const repoName = getRepoNameFromUrl(repositoryUrl);
         const targetPath = path.join(collectionLocation, repoName);
 
-        await dispatch(cloneGitRepository({ url: values.repositoryUrl, path: targetPath, processUid }));
+        await dispatch(cloneGitRepository({ url: values.repositoryUrl, path: targetPath, processUid, collectionPath: collectionPath.trim() }));
 
         cloneFinished();
         dispatch(removeGitOperationProgress(processUid));
 
         scanInProgress();
-        const foundCollectionPaths = await dispatch(scanForBrunoFiles(targetPath));
+        const scanPath = collectionPath.trim() ? path.join(targetPath, collectionPath.trim()) : targetPath;
+        const foundCollectionPaths = await dispatch(scanForBrunoFiles(scanPath));
 
         scanFinished();
         setCollectionPaths(foundCollectionPaths);
@@ -271,6 +273,25 @@ const CloneGitRepository = ({ onClose, onFinish, collectionRepositoryUrl = null 
                 {formik.touched.repositoryUrl && formik.errors.repositoryUrl && (
                   <div className="text-red-500">{formik.errors.repositoryUrl}</div>
                 )}
+                <label htmlFor="collection-path" className="block font-semibold mt-3">
+                  Collection Path in Repository
+                </label>
+                <input
+                  id="collection-path"
+                  type="text"
+                  name="collectionPath"
+                  className="block textbox mt-2 w-full"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  placeholder="bruno-collection"
+                  onChange={formik.handleChange}
+                  value={formik.values.collectionPath || ''}
+                />
+                <div className="mt-1 text-xs opacity-60">
+                  Path to the collection folder inside the repository. Leave empty to clone the entire repository.
+                </div>
                 <label htmlFor="collection-location" className="block font-semibold mt-3">
                   Location
                 </label>

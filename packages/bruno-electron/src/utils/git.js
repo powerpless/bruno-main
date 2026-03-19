@@ -721,6 +721,20 @@ const cloneGitRepository = async (win, data) => {
   });
 };
 
+const cloneSparseCollection = async (win, { url, path: targetPath, collectionPath, processUid }) => {
+  const git = simpleGit(targetPath);
+  git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
+
+  // Clone without checking out any files — no working tree files created yet
+  await git.clone(url, targetPath, ['--no-checkout', '--progress']);
+
+  // Configure sparse-checkout (non-cone mode: only the exact path, no parent dir files)
+  await git.raw(['sparse-checkout', 'set', '--no-cone', collectionPath + '/']);
+
+  // Checkout HEAD — only files matching the sparse pattern will appear on disk
+  await git.checkout(['HEAD']);
+};
+
 const fetchRemotes = (gitRootPath) => {
   return new Promise((resolve, reject) => {
     if (!gitRootPath) return resolve([]);
@@ -1783,6 +1797,7 @@ module.exports = {
   getUnstagedFileDiff,
   getRenamedFileDiff,
   cloneGitRepository,
+  cloneSparseCollection,
   fetchChanges,
   fetchRemotes,
   fetchRemoteBranches,

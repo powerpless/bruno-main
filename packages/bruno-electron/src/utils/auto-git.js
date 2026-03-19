@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const simpleGit = require('simple-git');
 const {
   getCollectionGitRootPath,
   fetchRemotes,
@@ -11,6 +12,16 @@ const {
   pushGitChanges
 } = require('./git');
 const { uuid } = require('./common');
+
+const isPushRejected = (error) => {
+  const msg = error?.message || '';
+  return (
+    msg.includes('rejected')
+    || msg.includes('non-fast-forward')
+    || msg.includes('fetch first')
+    || msg.includes('Updates were rejected')
+  );
+};
 
 // Per-gitRootPath mutex to serialize git operations (shared with git-auto-sync)
 const activeLocks = new Map();
@@ -101,26 +112,37 @@ const _executeCommitAndPush = async (win, gitRootPath, collectionPath) => {
 
     // Commit
     const timestamp = new Date().toISOString();
-    await commitChanges(gitRootPath, `Bruno auto-save: ${timestamp}`);
+    await commitChanges(gitRootPath, `[Bruno] auto-save: ${timestamp}`);
 
     // Get current branch and push
     const currentBranch = await getCurrentGitBranch(gitRootPath);
     const processUid = uuid();
-    await pushGitChanges(win, {
-      gitRootPath,
-      processUid,
-      remote: 'origin',
-      remoteBranch: currentBranch
-    });
+
+    try {
+      await pushGitChanges(win, { gitRootPath, processUid, remote: 'origin', remoteBranch: currentBranch });
+    } catch (pushError) {
+      if (isPushRejected(pushError)) {
+        // Remote is ahead — try rebase and retry push
+        const git = simpleGit(gitRootPath);
+        await git.pull('origin', currentBranch, ['--rebase']);
+        await pushGitChanges(win, { gitRootPath, processUid: uuid(), remote: 'origin', remoteBranch: currentBranch });
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('main:auto-git-status', { type: 'info', message: 'Rebased and pushed successfully' });
+        }
+      } else {
+        throw pushError;
+      }
+    }
 
     release();
   } catch (error) {
     if (release) release();
     console.error('Auto git commit+push failed:', error.message);
     if (win && !win.isDestroyed()) {
+      const isConflict = error.message?.includes('conflict') || error.message?.includes('CONFLICT');
       win.webContents.send('main:auto-git-status', {
-        type: 'error',
-        message: error.message || 'Git auto-sync failed'
+        type: isConflict ? 'pull-conflict' : 'error',
+        message: isConflict ? 'Merge conflict after rebase — manual resolution required' : (error.message || 'Git auto-sync failed')
       });
     }
   }
