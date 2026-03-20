@@ -3,6 +3,12 @@ require('dotenv').config({ path: process.env.DOTENV_PATH });
 const config = {
   appId: 'com.usebruno.app',
   productName: 'Bruno',
+  publish: {
+    provider: 'github',
+    owner: process.env.GH_OWNER || 'ТВОЙ_GITHUB_USERNAME',
+    repo: process.env.GH_REPO || 'НАЗВАНИЕ_РЕПОЗИТОРИЯ',
+    private: true
+  },
   electronVersion: '37.6.1',
   directories: {
     buildResources: 'resources',

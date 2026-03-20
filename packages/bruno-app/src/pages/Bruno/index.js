@@ -83,6 +83,12 @@ export default function Main() {
   const mainSectionRef = useRef(null);
   const [showRosettaBanner, setShowRosettaBanner] = useState(false);
 
+  // Auto-update state
+  const [updateInfo, setUpdateInfo] = useState(null); // { version }
+  const [updateProgress, setUpdateProgress] = useState(null); // { percent }
+  const [updateReady, setUpdateReady] = useState(null); // { version }
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
   // Initialize event listeners
   useGrpcEventListeners();
   useWsEventListeners();
@@ -105,15 +111,91 @@ export default function Main() {
       setShowRosettaBanner(init.isRunningInRosetta);
     });
 
+    const removeUpdateAvailable = ipcRenderer.on('main:update-available', (info) => {
+      setUpdateInfo(info);
+      setUpdateDismissed(false);
+    });
+
+    const removeUpdateProgress = ipcRenderer.on('main:update-progress', (progress) => {
+      setUpdateProgress(progress);
+    });
+
+    const removeUpdateDownloaded = ipcRenderer.on('main:update-downloaded', (info) => {
+      setUpdateProgress(null);
+      setUpdateReady(info);
+    });
+
     return () => {
       removeAppLoadedListener();
+      removeUpdateAvailable();
+      removeUpdateProgress();
+      removeUpdateDownloaded();
     };
   }, []);
+
+  const handleDownloadUpdate = async () => {
+    setUpdateProgress({ percent: 0 });
+    try {
+      await window.ipcRenderer.invoke('renderer:download-update');
+    } catch (e) {
+      setUpdateProgress(null);
+    }
+  };
+
+  const handleInstallUpdate = () => {
+    window.ipcRenderer.invoke('renderer:install-update');
+  };
+
+  const showUpdateBanner = !updateDismissed && (updateInfo || updateProgress !== null || updateReady);
 
   return (
     // <ErrorCapture>
     <div id="main-container" className="flex flex-col h-screen max-h-screen overflow-hidden">
       <AppTitleBar />
+
+      {/* Update banner */}
+      {showUpdateBanner && (
+        <div
+          className="flex items-center gap-3 px-4 py-2 text-sm"
+          style={{ background: '#1e40af', color: '#fff', flexShrink: 0 }}
+        >
+          {updateReady ? (
+            <>
+              <span>✓ Версия {updateReady.version} загружена. Перезапусти приложение для установки.</span>
+              <button
+                onClick={handleInstallUpdate}
+                style={{ background: '#fff', color: '#1e40af', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
+              >
+                Перезапустить
+              </button>
+            </>
+          ) : updateProgress !== null ? (
+            <>
+              <span>Загрузка обновления... {updateProgress.percent}%</span>
+              <div style={{ flex: 1, maxWidth: 200, height: 4, background: 'rgba(255,255,255,0.3)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${updateProgress.percent}%`, height: '100%', background: '#fff', transition: 'width 0.3s' }} />
+              </div>
+            </>
+          ) : updateInfo ? (
+            <>
+              <span>Доступна новая версия <strong>{updateInfo.version}</strong></span>
+              <button
+                onClick={handleDownloadUpdate}
+                style={{ background: '#fff', color: '#1e40af', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
+              >
+                Загрузить
+              </button>
+            </>
+          ) : null}
+          <button
+            onClick={() => setUpdateDismissed(true)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {showRosettaBanner ? (
         <Portal>
           <div className="fixed bottom-0 left-0 right-0 z-10 bg-amber-100 border border-amber-400 text-amber-700 px-4 py-3" role="alert">
