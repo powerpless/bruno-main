@@ -758,19 +758,13 @@ const downloadCollectionFromGit = async (win, { url, targetPath, collectionPath,
   try {
     const git = simpleGit(tempDir);
     git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
-    if (collectionPath && collectionPath.trim()) {
-      await git.clone(url, tempDir, ['--no-checkout', '--progress', '--depth', '1']);
-      await git.raw(['sparse-checkout', 'set', '--no-cone', collectionPath.trim() + '/']);
-      await git.checkout(['HEAD']);
-      await copyCollectionFiles(path.join(tempDir, collectionPath.trim()), targetPath);
-    } else {
-      await git.clone(url, tempDir, ['--no-checkout', '--progress', '--depth', '1']);
-      await git.checkout(['HEAD']);
-      await copyCollectionFiles(tempDir, targetPath);
-    }
+    await git.clone(url, tempDir, ['--progress']);
+    const sourceDir = collectionPath && collectionPath.trim()
+      ? path.join(tempDir, collectionPath.trim())
+      : tempDir;
+    await copyCollectionFiles(sourceDir, targetPath);
   } finally {
-    const fsPromises2 = require('fs/promises');
-    await fsPromises2.rm(tempDir, { recursive: true, force: true });
+    await fsPromises.rm(tempDir, { recursive: true, force: true });
   }
 };
 
