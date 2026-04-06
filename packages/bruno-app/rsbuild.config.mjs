@@ -29,6 +29,9 @@ export default defineConfig({
   html: {
     title: 'Bruno'
   },
+  output: {
+    assetPrefix: './'
+  },
   tools: {
     rspack: {
       module: {
