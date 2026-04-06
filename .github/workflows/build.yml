@@ -19,6 +19,13 @@ jobs:
       - name: Install root dependencies
         run: npm install
 
+      - name: Build workspace packages
+        run: |
+          npm run build:bruno-common
+          npm run build:bruno-converters
+          npm run build:bruno-requests
+          npm run build:bruno-query
+
       - name: Build bruno-app
         working-directory: packages/bruno-app
         run: npm run build
@@ -51,6 +58,13 @@ jobs:
 
       - name: Install root dependencies
         run: npm install
+
+      - name: Build workspace packages
+        run: |
+          npm run build:bruno-common
+          npm run build:bruno-converters
+          npm run build:bruno-requests
+          npm run build:bruno-query
 
       - name: Build bruno-app
         working-directory: packages/bruno-app
