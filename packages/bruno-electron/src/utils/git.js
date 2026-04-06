@@ -754,17 +754,18 @@ const copyCollectionFiles = async (sourceDir, targetDir) => {
 const downloadCollectionFromGit = async (win, { url, targetPath, collectionPath, processUid }) => {
   const os = require('os');
   const fsPromises = require('fs/promises');
-  const tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'bruno-git-dl-'));
+  const tempBase = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'bruno-git-dl-'));
+  const repoDir = path.join(tempBase, 'repo');
   try {
-    const git = simpleGit(tempDir);
+    const git = simpleGit();
     git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
-    await git.clone(url, tempDir, ['--progress']);
+    await git.clone(url, repoDir, ['--progress']);
     const sourceDir = collectionPath && collectionPath.trim()
-      ? path.join(tempDir, collectionPath.trim())
-      : tempDir;
+      ? path.join(repoDir, collectionPath.trim())
+      : repoDir;
     await copyCollectionFiles(sourceDir, targetPath);
   } finally {
-    await fsPromises.rm(tempDir, { recursive: true, force: true });
+    await fsPromises.rm(tempBase, { recursive: true, force: true });
   }
 };
 
