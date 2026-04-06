@@ -138,6 +138,7 @@ const DownloadCollectionFromGit = ({ onClose, onFinish }) => {
         const foundCollectionPaths = await dispatch(scanForBrunoFiles(targetLocation));
         scanFinished();
         setCollectionPaths(foundCollectionPaths);
+        setSelectedCollectionPaths(foundCollectionPaths);
       } catch (err) {
         downloadError();
         dispatch(removeGitOperationProgress(processUid));
