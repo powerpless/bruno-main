@@ -30,6 +30,7 @@ import ImportCollection from 'components/Sidebar/ImportCollection';
 import ImportCollectionLocation from 'components/Sidebar/ImportCollectionLocation';
 import BulkImportCollectionLocation from 'components/Sidebar/BulkImportCollectionLocation';
 import CloneGitRepository from 'components/Sidebar/CloneGitRespository';
+import DownloadCollectionFromGit from 'components/Sidebar/DownloadCollectionFromGit';
 import RemoveCollectionsModal from 'components/Sidebar/Collections/RemoveCollectionsModal/index';
 import CreateCollection from 'components/Sidebar/CreateCollection';
 import WelcomeModal from 'components/WelcomeModal';
@@ -57,6 +58,7 @@ const CollectionsSection = () => {
   const [importCollectionLocationModalOpen, setImportCollectionLocationModalOpen] = useState(false);
   const [showCloneGitModal, setShowCloneGitModal] = useState(false);
   const [gitRepositoryUrl, setGitRepositoryUrl] = useState(null);
+  const [showDownloadGitModal, setShowDownloadGitModal] = useState(false);
 
   // Default to true (don't show modal) so that:
   // 1. Existing users who upgrade (no hasSeenWelcomeModal in their prefs) don't see it
@@ -95,6 +97,12 @@ const CollectionsSection = () => {
     if (type === 'git-repository') {
       setGitRepositoryUrl(repositoryUrl);
       setShowCloneGitModal(true);
+      return;
+    }
+
+    if (type === 'download-git') {
+      setImportCollectionModalOpen(false);
+      setShowDownloadGitModal(true);
       return;
     }
 
@@ -387,6 +395,12 @@ const CollectionsSection = () => {
           onClose={handleCloseGitModal}
           onFinish={handleCloseGitModal}
           collectionRepositoryUrl={gitRepositoryUrl}
+        />
+      )}
+      {showDownloadGitModal && (
+        <DownloadCollectionFromGit
+          onClose={() => setShowDownloadGitModal(false)}
+          onFinish={() => setShowDownloadGitModal(false)}
         />
       )}
       <SidebarSection

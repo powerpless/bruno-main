@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { IconFileImport, IconBrandGit, IconUnlink, IconX } from '@tabler/icons';
+import { IconFileImport, IconBrandGit, IconUnlink, IconCloudDownload, IconX } from '@tabler/icons';
 import Modal from 'components/Modal';
 import classnames from 'classnames';
 import StyledWrapper from './StyledWrapper';
 import FileTab from './FileTab';
 import GitHubTab from './GitHubTab';
 import UrlTab from './UrlTab';
+import DownloadGitTab from './DownloadGitTab';
 import FullscreenLoader from './FullscreenLoader/index';
 import { useTheme } from 'providers/Theme';
 
 const IMPORT_TABS = {
   FILE: 'file',
   GITHUB: 'github',
-  URL: 'url'
+  URL: 'url',
+  DOWNLOAD_GIT: 'download-git'
 };
 
 const ImportCollection = ({ onClose, handleSubmit }) => {
@@ -65,6 +67,14 @@ const ImportCollection = ({ onClose, handleSubmit }) => {
               <IconUnlink size={18} strokeWidth={1.5} className="mr-2" />
               URL
             </div>
+            <div
+              className={getTabClassname(IMPORT_TABS.DOWNLOAD_GIT)}
+              onClick={handleTabSelect(IMPORT_TABS.DOWNLOAD_GIT)}
+              data-testid="download-git-tab"
+            >
+              <IconCloudDownload size={18} strokeWidth={1.5} className="mr-2" />
+              Download from Git
+            </div>
           </div>
         </div>
 
@@ -112,6 +122,11 @@ const ImportCollection = ({ onClose, handleSubmit }) => {
             setIsLoading={setIsLoading}
             handleSubmit={handleSubmit}
             setErrorMessage={setErrorMessage}
+          />
+        )}
+        {tab === IMPORT_TABS.DOWNLOAD_GIT && (
+          <DownloadGitTab
+            handleSubmit={handleSubmit}
           />
         )}
       </StyledWrapper>

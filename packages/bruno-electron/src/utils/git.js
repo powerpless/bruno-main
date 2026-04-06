@@ -735,6 +735,45 @@ const cloneSparseCollection = async (win, { url, path: targetPath, collectionPat
   await git.checkout(['HEAD']);
 };
 
+const copyCollectionFiles = async (sourceDir, targetDir) => {
+  const fsPromises = require('fs/promises');
+  const entries = await fsPromises.readdir(sourceDir, { withFileTypes: true });
+  await fsPromises.mkdir(targetDir, { recursive: true });
+  for (const entry of entries) {
+    if (entry.name === '.git') continue;
+    const srcPath = path.join(sourceDir, entry.name);
+    const destPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      await copyCollectionFiles(srcPath, destPath);
+    } else {
+      await fsPromises.copyFile(srcPath, destPath);
+    }
+  }
+};
+
+const downloadCollectionFromGit = async (win, { url, targetPath, collectionPath, processUid }) => {
+  const os = require('os');
+  const fsPromises = require('fs/promises');
+  const tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'bruno-git-dl-'));
+  try {
+    const git = simpleGit(tempDir);
+    git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
+    if (collectionPath && collectionPath.trim()) {
+      await git.clone(url, tempDir, ['--no-checkout', '--progress', '--depth', '1']);
+      await git.raw(['sparse-checkout', 'set', '--no-cone', collectionPath.trim() + '/']);
+      await git.checkout(['HEAD']);
+      await copyCollectionFiles(path.join(tempDir, collectionPath.trim()), targetPath);
+    } else {
+      await git.clone(url, tempDir, ['--no-checkout', '--progress', '--depth', '1']);
+      await git.checkout(['HEAD']);
+      await copyCollectionFiles(tempDir, targetPath);
+    }
+  } finally {
+    const fsPromises2 = require('fs/promises');
+    await fsPromises2.rm(tempDir, { recursive: true, force: true });
+  }
+};
+
 const fetchRemotes = (gitRootPath) => {
   return new Promise((resolve, reject) => {
     if (!gitRootPath) return resolve([]);
@@ -1798,6 +1837,7 @@ module.exports = {
   getRenamedFileDiff,
   cloneGitRepository,
   cloneSparseCollection,
+  downloadCollectionFromGit,
   fetchChanges,
   fetchRemotes,
   fetchRemoteBranches,

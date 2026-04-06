@@ -1,7 +1,7 @@
 const { ipcMain } = require('electron');
 const fs = require('fs');
 const { exec } = require('child_process');
-const { cloneGitRepository, cloneSparseCollection, getCollectionGitRootPath, getCollectionGitRepoUrl, fetchRemotes, addRemote, getChangedFilesInCollectionGit, stageChanges, commitChanges, getCurrentGitBranch, pushGitChanges, getUnstagedFileDiff, getStagedFileDiff, discardChanges } = require('../utils/git');
+const { cloneGitRepository, cloneSparseCollection, downloadCollectionFromGit, getCollectionGitRootPath, getCollectionGitRepoUrl, fetchRemotes, addRemote, getChangedFilesInCollectionGit, stageChanges, commitChanges, getCurrentGitBranch, pushGitChanges, getUnstagedFileDiff, getStagedFileDiff, discardChanges } = require('../utils/git');
 const path = require('path');
 const { uuid } = require('../utils/common');
 const { createDirectory, removeDirectory } = require('../utils/filesystem');
@@ -33,6 +33,17 @@ const registerGitIpc = (mainWindow) => {
       if (directoryCreated) {
         await removeDirectory(path);
       }
+      return Promise.reject(error);
+    }
+  });
+
+  ipcMain.handle('renderer:download-collection-from-git', async (event, { url, targetPath, processUid, collectionPath }) => {
+    try {
+      const fsPromises = require('fs/promises');
+      await fsPromises.mkdir(targetPath, { recursive: true });
+      await downloadCollectionFromGit(mainWindow, { url, targetPath, collectionPath: collectionPath?.trim() || '', processUid });
+      return 'Collection files downloaded successfully';
+    } catch (error) {
       return Promise.reject(error);
     }
   });

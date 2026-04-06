@@ -3102,6 +3102,19 @@ export const cloneGitRepository = (data) => (dispatch, getState) => {
   });
 };
 
+export const downloadCollectionFromGit = (data) => (dispatch, getState) => {
+  const { ipcRenderer } = window;
+  return new Promise((resolve, reject) => {
+    ipcRenderer
+      .invoke('renderer:download-collection-from-git', data)
+      .then(resolve)
+      .catch((err) => {
+        toast.custom(<IpcErrorModal error={err?.message} />);
+        reject();
+      });
+  });
+};
+
 export const scanForBrunoFiles = (dir) => (dispatch, getState) => {
   const { ipcRenderer } = window;
   return new Promise((resolve, reject) => {
