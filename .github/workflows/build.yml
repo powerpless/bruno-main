@@ -37,6 +37,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path packages/bruno-electron/web | Out-Null
           Copy-Item -Recurse -Force packages/bruno-app/dist/* packages/bruno-electron/web/
 
+      - name: Install electron dependencies
+        working-directory: packages/bruno-electron
+        run: npm install
+
       - name: Build Windows installer
         working-directory: packages/bruno-electron
         run: npm run dist:win -- --publish never
@@ -76,6 +80,10 @@ jobs:
         run: |
           mkdir -p packages/bruno-electron/web
           cp -r packages/bruno-app/dist/* packages/bruno-electron/web/
+
+      - name: Install electron dependencies
+        working-directory: packages/bruno-electron
+        run: npm install
 
       - name: Build macOS installer
         working-directory: packages/bruno-electron
