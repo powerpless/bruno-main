@@ -1,7 +1,7 @@
 const { ipcMain } = require('electron');
 const fs = require('fs');
 const { exec } = require('child_process');
-const { cloneGitRepository, cloneSparseCollection, downloadCollectionFromGit, getCollectionGitRootPath, getCollectionGitRepoUrl, fetchRemotes, addRemote, getChangedFilesInCollectionGit, stageChanges, commitChanges, getCurrentGitBranch, pushGitChanges, getUnstagedFileDiff, getStagedFileDiff, discardChanges } = require('../utils/git');
+const { cloneGitRepository, cloneSparseCollection, downloadCollectionFromGit, getCollectionGitRootPath, getCollectionGitRepoUrl, fetchRemotes, addRemote, getChangedFilesInCollectionGit, stageChanges, commitChanges, getCurrentGitBranch, pushGitChanges, getUnstagedFileDiff, getStagedFileDiff, discardChanges, initGit } = require('../utils/git');
 const path = require('path');
 const { uuid } = require('../utils/common');
 const { createDirectory, removeDirectory } = require('../utils/filesystem');
@@ -207,8 +207,11 @@ const registerGitIpc = (mainWindow) => {
 
   ipcMain.handle('renderer:set-git-remote-url', async (event, { collectionPath, url }) => {
     try {
-      const gitRootPath = getCollectionGitRootPath(collectionPath);
-      if (!gitRootPath) throw new Error('Not a git repository');
+      let gitRootPath = getCollectionGitRootPath(collectionPath);
+      if (!gitRootPath) {
+        await initGit(collectionPath);
+        gitRootPath = collectionPath;
+      }
 
       const git = simpleGit(gitRootPath);
       const remotes = await fetchRemotes(gitRootPath);
