@@ -43,21 +43,6 @@ jobs:
         working-directory: packages/bruno-electron
         run: npm install
 
-      - name: Copy workspace packages into electron node_modules
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path packages/bruno-electron/node_modules/@usebruno | Out-Null
-          @('common:bruno-common','converters:bruno-converters','filestore:bruno-filestore','js:bruno-js','lang:bruno-lang','requests:bruno-requests','schema:bruno-schema','query:bruno-query') | ForEach-Object {
-            $name, $src = $_ -split ':'
-            if (Test-Path "packages/$src") {
-              $dest = "packages/bruno-electron/node_modules/@usebruno/$name"
-              if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-              robocopy "packages/$src" $dest /E /XD node_modules .git | Out-Null
-              if ($LASTEXITCODE -lt 8) { $global:LASTEXITCODE = 0 }
-              Write-Host "Copied @usebruno/$name"
-            }
-          }
-
       - name: Build Windows installer
         working-directory: packages/bruno-electron
         run: npm run dist:win -- --publish never
@@ -105,19 +90,6 @@ jobs:
       - name: Install electron dependencies
         working-directory: packages/bruno-electron
         run: npm install
-
-      - name: Copy workspace packages into electron node_modules
-        run: |
-          mkdir -p packages/bruno-electron/node_modules/@usebruno
-          for pair in "common:bruno-common" "converters:bruno-converters" "filestore:bruno-filestore" "js:bruno-js" "lang:bruno-lang" "requests:bruno-requests" "schema:bruno-schema" "query:bruno-query"; do
-            name="${pair%%:*}"
-            src="${pair##*:}"
-            if [ -d "packages/$src" ]; then
-              rm -rf "packages/bruno-electron/node_modules/@usebruno/$name"
-              rsync -a --exclude=node_modules --exclude=.git "packages/$src/" "packages/bruno-electron/node_modules/@usebruno/$name/"
-              echo "Copied @usebruno/$name"
-            fi
-          done
 
       - name: Build macOS installer
         working-directory: packages/bruno-electron
