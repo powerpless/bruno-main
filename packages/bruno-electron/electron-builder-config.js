@@ -15,6 +15,14 @@ const config = {
     }
   ],
   files: ['**/*'],
+  asarUnpack: [
+    'node_modules/@lydell/node-pty-win32-x64/**',
+    'node_modules/@lydell/node-pty-darwin-x64/**',
+    'node_modules/@lydell/node-pty-darwin-arm64/**',
+    'node_modules/@lydell/node-pty-linux-x64/**',
+    'node_modules/native-reg/**',
+    'node_modules/win-export-certificate-and-key/**'
+  ],
   mac: {
     artifactName: '${name}_${version}_${arch}_${os}.${ext}',
     category: 'public.app-category.developer-tools',

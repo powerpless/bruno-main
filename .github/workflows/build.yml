@@ -26,6 +26,7 @@ jobs:
           npm run build:bruno-requests
           npm run build:bruno-query
           npm run build:graphql-docs
+          npm run build:bruno-filestore
 
       - name: Build bruno-app
         working-directory: packages/bruno-app
@@ -88,6 +89,7 @@ jobs:
           npm run build:bruno-requests
           npm run build:bruno-query
           npm run build:graphql-docs
+          npm run build:bruno-filestore
 
       - name: Build bruno-app
         working-directory: packages/bruno-app
