@@ -1,3 +1,27 @@
+// Debug: log exact module that fails to load
+(function () {
+  const _M = require('module');
+  const _orig = _M._load;
+  const _fs = require('fs');
+  const _os = require('os');
+  const _path = require('path');
+  _M._load = function (request, parent, isMain) {
+    try {
+      return _orig.call(this, request, parent, isMain);
+    } catch (err) {
+      try {
+        _fs.appendFileSync(
+          _path.join(_os.homedir(), 'bruno-crash.log'),
+          '[' + new Date().toISOString() + '] FAILED: ' + request
+          + '\n  from: ' + (parent && parent.filename)
+          + '\n  error: ' + err.message + '\n\n'
+        );
+      } catch (e) {}
+      throw err;
+    }
+  };
+})();
+
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const fs = require('fs');
 const path = require('path');
