@@ -45,7 +45,6 @@ const registerWorkspaceIpc = require('./ipc/workspace');
 const registerApiSpecIpc = require('./ipc/apiSpec');
 const registerGitIpc = require('./ipc/git');
 const registerOpenAPISyncIpc = require('./ipc/openapi-sync');
-const { setupAutoUpdater } = require('./utils/auto-updater');
 const collectionWatcher = require('./app/collection-watcher');
 const WorkspaceWatcher = require('./app/workspace-watcher');
 const ApiSpecWatcher = require('./app/apiSpecsWatcher');
@@ -321,7 +320,12 @@ app.on('ready', async () => {
 
   // Auto-updater (только в production-сборке)
   if (!isDev) {
-    setupAutoUpdater(mainWindow);
+    try {
+      const { setupAutoUpdater } = require('./utils/auto-updater');
+      setupAutoUpdater(mainWindow);
+    } catch (e) {
+      console.error('[auto-updater] failed to load:', e.message);
+    }
   }
 
   mainWindow.once('ready-to-show', () => {

@@ -39,7 +39,7 @@ jobs:
 
       - name: Install electron dependencies
         working-directory: packages/bruno-electron
-        run: npm install
+        run: npm install --install-strategy=nested
 
       - name: Build Windows installer
         working-directory: packages/bruno-electron
@@ -85,7 +85,7 @@ jobs:
 
       - name: Install electron dependencies
         working-directory: packages/bruno-electron
-        run: npm install
+        run: npm install --install-strategy=nested
 
       - name: Build macOS installer
         working-directory: packages/bruno-electron
