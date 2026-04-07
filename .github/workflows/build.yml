@@ -33,7 +33,9 @@ jobs:
 
       - name: Copy web build to electron
         shell: pwsh
-        run: Copy-Item -Recurse -Force packages/bruno-app/dist/* packages/bruno-electron/web/
+        run: |
+          New-Item -ItemType Directory -Force -Path packages/bruno-electron/web | Out-Null
+          Copy-Item -Recurse -Force packages/bruno-app/dist/* packages/bruno-electron/web/
 
       - name: Build Windows installer
         working-directory: packages/bruno-electron
@@ -73,7 +75,9 @@ jobs:
         run: npm run build
 
       - name: Copy web build to electron
-        run: cp -r packages/bruno-app/dist/* packages/bruno-electron/web/
+        run: |
+          mkdir -p packages/bruno-electron/web
+          cp -r packages/bruno-app/dist/* packages/bruno-electron/web/
 
       - name: Build macOS installer
         working-directory: packages/bruno-electron
