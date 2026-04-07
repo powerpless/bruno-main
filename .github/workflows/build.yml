@@ -51,6 +51,7 @@ jobs:
               $dest = "packages/bruno-electron/node_modules/@usebruno/$name"
               if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
               robocopy "packages/$src" $dest /E /XD node_modules .git | Out-Null
+              if ($LASTEXITCODE -lt 8) { $global:LASTEXITCODE = 0 }
               Write-Host "Copied @usebruno/$name"
             }
           }
