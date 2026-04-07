@@ -25,6 +25,7 @@ jobs:
           npm run build:bruno-converters
           npm run build:bruno-requests
           npm run build:bruno-query
+          npm run build:graphql-docs
 
       - name: Build bruno-app
         working-directory: packages/bruno-app
@@ -65,6 +66,7 @@ jobs:
           npm run build:bruno-converters
           npm run build:bruno-requests
           npm run build:bruno-query
+          npm run build:graphql-docs
 
       - name: Build bruno-app
         working-directory: packages/bruno-app
