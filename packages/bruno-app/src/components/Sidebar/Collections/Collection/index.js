@@ -4,6 +4,7 @@ import classnames from 'classnames';
 import { uuid } from 'utils/common';
 import filter from 'lodash/filter';
 import { useDrop, useDrag } from 'react-dnd';
+import { NativeTypes } from 'react-dnd-html5-backend';
 import {
   IconChevronRight,
   IconDots,
@@ -238,10 +239,41 @@ const Collection = ({ collection, searchText }) => {
     }
   });
 
+  const importExternalFilesToCollectionRoot = async (files) => {
+    const ipc = window.ipcRenderer;
+    if (!ipc || typeof ipc.getFilePath !== 'function') {
+      toast.error('File import not supported in this environment');
+      return;
+    }
+    ensureCollectionIsMounted();
+    let imported = 0;
+    let failed = 0;
+    for (const file of files) {
+      try {
+        const sourceFilePath = ipc.getFilePath(file);
+        if (!sourceFilePath) throw new Error('Could not resolve file path');
+        await ipc.invoke('renderer:import-bru-file', {
+          sourceFilePath,
+          targetFolderPath: collection.pathname
+        });
+        imported++;
+      } catch (e) {
+        failed++;
+        console.error('Import failed:', e);
+      }
+    }
+    if (imported > 0) toast.success(`Imported ${imported} file${imported > 1 ? 's' : ''} into ${collection.name}`);
+    if (failed > 0) toast.error(`Failed to import ${failed} file${failed > 1 ? 's' : ''}`);
+  };
+
   const [{ isOver }, drop] = useDrop({
-    accept: ['collection', 'collection-item'],
+    accept: ['collection', 'collection-item', NativeTypes.FILE],
     hover: (_draggedItem, monitor) => {
       const itemType = monitor.getItemType();
+      if (itemType === NativeTypes.FILE) {
+        setDropType('inside');
+        return;
+      }
       if (isCollectionItem(itemType)) {
         // For collection items, always show full highlight (inside drop)
         setDropType('inside');
@@ -250,8 +282,16 @@ const Collection = ({ collection, searchText }) => {
         setDropType('adjacent');
       }
     },
-    drop: (draggedItem, monitor) => {
+    drop: async (draggedItem, monitor) => {
       const itemType = monitor.getItemType();
+      if (itemType === NativeTypes.FILE) {
+        const files = draggedItem?.files || [];
+        if (files.length) {
+          await importExternalFilesToCollectionRoot(files);
+        }
+        setDropType(null);
+        return;
+      }
       if (isCollectionItem(itemType)) {
         dispatch(handleCollectionItemDrop({ targetItem: collection, draggedItem, dropType: 'inside', collectionUid: collection.uid }));
       } else {
@@ -259,7 +299,10 @@ const Collection = ({ collection, searchText }) => {
       }
       setDropType(null);
     },
-    canDrop: (draggedItem) => {
+    canDrop: (draggedItem, monitor) => {
+      if (monitor.getItemType() === NativeTypes.FILE) {
+        return true;
+      }
       return draggedItem.uid !== collection.uid;
     },
     collect: (monitor) => ({

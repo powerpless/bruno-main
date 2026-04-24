@@ -345,6 +345,18 @@ const useIpcEvents = () => {
       if (val.type === 'pull-conflict') {
         toast.error(`Git sync conflict: manual merge required`);
       }
+      if (val.type === 'remote-changes-available') {
+        toast(
+          `${val.behind} new commit${val.behind > 1 ? 's' : ''} on origin/${val.branch} — open Collection Settings > Git to update`,
+          { duration: 8000 }
+        );
+      }
+      if (val.type === 'auto-pulled') {
+        toast.success(`Pulled ${val.behind} commit${val.behind > 1 ? 's' : ''} from origin/${val.branch}`);
+      }
+      if (val.type === 'auto-pull-blocked') {
+        toast(`Remote has updates but local tree is dirty - pull manually`, { duration: 6000 });
+      }
     });
 
     return () => {

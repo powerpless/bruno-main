@@ -4,6 +4,7 @@ import range from 'lodash/range';
 import filter from 'lodash/filter';
 import classnames from 'classnames';
 import { useDrag, useDrop } from 'react-dnd';
+import { NativeTypes } from 'react-dnd-html5-backend';
 import {
   IconChevronRight,
   IconDots,
@@ -156,9 +157,44 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
     return true;
   };
 
+  const importExternalFiles = async (files) => {
+    if (!isFolder) {
+      toast.error('Drop .bru files onto a folder or collection');
+      return;
+    }
+    const ipc = window.ipcRenderer;
+    if (!ipc || typeof ipc.getFilePath !== 'function') {
+      toast.error('File import not supported in this environment');
+      return;
+    }
+    let imported = 0;
+    let failed = 0;
+    for (const file of files) {
+      try {
+        const sourceFilePath = ipc.getFilePath(file);
+        if (!sourceFilePath) throw new Error('Could not resolve file path');
+        await ipc.invoke('renderer:import-bru-file', {
+          sourceFilePath,
+          targetFolderPath: item.pathname
+        });
+        imported++;
+      } catch (e) {
+        failed++;
+        console.error('Import failed:', e);
+      }
+    }
+    if (imported > 0) toast.success(`Imported ${imported} file${imported > 1 ? 's' : ''} into ${item.name}`);
+    if (failed > 0) toast.error(`Failed to import ${failed} file${failed > 1 ? 's' : ''}`);
+  };
+
   const [{ isOver, canDrop }, drop] = useDrop({
-    accept: 'collection-item',
+    accept: ['collection-item', NativeTypes.FILE],
     hover: (draggedItem, monitor) => {
+      const itemType = monitor.getItemType();
+      if (itemType === NativeTypes.FILE) {
+        setDropType(isFolder ? 'inside' : null);
+        return;
+      }
       const { uid: targetItemUid } = item;
       const { uid: draggedItemUid } = draggedItem;
 
@@ -171,6 +207,15 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
       setDropType(_canItemBeDropped ? dropType : null);
     },
     drop: async (draggedItem, monitor) => {
+      const itemType = monitor.getItemType();
+      if (itemType === NativeTypes.FILE) {
+        const files = draggedItem?.files || [];
+        if (files.length && isFolder) {
+          await importExternalFiles(files);
+        }
+        setDropType(null);
+        return;
+      }
       const { uid: targetItemUid } = item;
       const { uid: draggedItemUid } = draggedItem;
 
@@ -182,7 +227,12 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
       await dispatch(handleCollectionItemDrop({ targetItem: item, draggedItem, dropType, collectionUid }));
       setDropType(null);
     },
-    canDrop: (draggedItem) => draggedItem.uid !== item.uid,
+    canDrop: (draggedItem, monitor) => {
+      if (monitor.getItemType() === NativeTypes.FILE) {
+        return isFolder;
+      }
+      return draggedItem.uid !== item.uid;
+    },
     collect: (monitor) => ({
       isOver: monitor.isOver()
     })

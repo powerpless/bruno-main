@@ -300,6 +300,19 @@ const StyledWrapper = styled.div`
     }
   }
 
+  /* Remote update banner */
+  .remote-update-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.8rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid ${(props) => props.theme.input.border};
+    border-left: 3px solid #3b82f6;
+    background-color: rgba(59, 130, 246, 0.08);
+    border-radius: 3px;
+  }
+
   /* Rebase dialog */
   .rebase-dialog {
     position: absolute;

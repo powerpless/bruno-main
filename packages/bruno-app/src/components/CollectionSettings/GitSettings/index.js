@@ -72,6 +72,13 @@ const GitSettings = ({ collection }) => {
   const [conflictContent, setConflictContent] = useState('');
   const [resolvedContent, setResolvedContent] = useState('');
   const [conflictSections, setConflictSections] = useState([]);
+  // Branches / pull state
+  const [branchInfo, setBranchInfo] = useState({ local: [], remote: [], current: null, default: null });
+  const [pullBranch, setPullBranch] = useState('');
+  const [pushBranch, setPushBranch] = useState('');
+  const [pullStrategy, setPullStrategy] = useState('rebase');
+  const [isPulling, setIsPulling] = useState(false);
+  const [remoteUpdate, setRemoteUpdate] = useState(null);
 
   const loadChangedFiles = useCallback(async () => {
     setIsLoadingFiles(true);
@@ -125,12 +132,55 @@ const GitSettings = ({ collection }) => {
     }
   }, [collection.pathname]);
 
+  const loadBranches = useCallback(async () => {
+    try {
+      const info = await ipcRenderer.invoke('renderer:get-git-branches', collection.pathname);
+      setBranchInfo(info || { local: [], remote: [], current: null, default: null });
+      setPullBranch((prev) => prev || info?.default || info?.current || '');
+      setPushBranch((prev) => prev || info?.current || info?.default || '');
+    } catch {
+      setBranchInfo({ local: [], remote: [], current: null, default: null });
+    }
+  }, [collection.pathname]);
+
+  const checkRemoteUpdates = useCallback(async () => {
+    try {
+      const result = await ipcRenderer.invoke('renderer:git-check-remote-updates', collection.pathname);
+      if (result?.behind > 0) {
+        setRemoteUpdate({ behind: result.behind, branch: result.branch, commits: result.commits || [] });
+      } else {
+        setRemoteUpdate(null);
+      }
+    } catch {
+      // ignore
+    }
+  }, [collection.pathname]);
+
   useEffect(() => {
     ipcRenderer.invoke('renderer:get-git-remote-url', collection.pathname)
       .then((url) => setRemoteUrl(url || ''))
       .catch(() => setRemoteUrl(''));
     loadChangedFiles();
+    loadBranches();
+    checkRemoteUpdates();
   }, [collection.pathname]);
+
+  useEffect(() => {
+    if (!ipcRenderer?.on) return;
+    const unsubscribe = ipcRenderer.on('main:auto-git-status', (val) => {
+      if (!val) return;
+      if (val.collectionPath && val.collectionPath !== collection.pathname) return;
+      if (val.type === 'remote-changes-available' && val.behind > 0) {
+        setRemoteUpdate({ behind: val.behind, branch: val.branch, commits: val.commits || [] });
+      }
+      if (val.type === 'auto-pulled') {
+        setRemoteUpdate(null);
+        loadChangedFiles();
+        loadBranches();
+      }
+    });
+    return () => unsubscribe && unsubscribe();
+  }, [collection.pathname, loadChangedFiles, loadBranches]);
 
   const handleSave = async () => {
     try {
@@ -150,11 +200,13 @@ const GitSettings = ({ collection }) => {
     try {
       const result = await ipcRenderer.invoke('renderer:manual-git-commit-push', {
         collectionPath: collection.pathname,
-        commitMessage: commitMessage.trim()
+        commitMessage: commitMessage.trim(),
+        targetBranch: (pushBranch || '').trim() || undefined
       });
       toast.success(`Committed and pushed to ${result.branch}`);
       setCommitMessage('');
       await loadChangedFiles();
+      await loadBranches();
     } catch (error) {
       if (error.needsRebase) {
         setShowRebaseDialog(true);
@@ -163,6 +215,50 @@ const GitSettings = ({ collection }) => {
       }
     } finally {
       setIsPushing(false);
+    }
+  };
+
+  const handlePull = async () => {
+    if (!pullBranch) {
+      toast.error('Select a branch to pull from');
+      return;
+    }
+    setIsPulling(true);
+    try {
+      const result = await ipcRenderer.invoke('renderer:manual-git-pull', {
+        collectionPath: collection.pathname,
+        branch: pullBranch,
+        strategy: pullStrategy
+      });
+      toast.success(`Pulled from origin/${result.branch}`);
+      setRemoteUpdate(null);
+      await loadChangedFiles();
+      await loadBranches();
+    } catch (error) {
+      toast.error(error.message || 'Pull failed');
+    } finally {
+      setIsPulling(false);
+    }
+  };
+
+  const handleOneClickUpdate = async () => {
+    if (!remoteUpdate) return;
+    const targetBranch = remoteUpdate.branch || pullBranch || branchInfo.current;
+    setIsPulling(true);
+    try {
+      const result = await ipcRenderer.invoke('renderer:manual-git-pull', {
+        collectionPath: collection.pathname,
+        branch: targetBranch,
+        strategy: 'rebase'
+      });
+      toast.success(`Updated from origin/${result.branch}`);
+      setRemoteUpdate(null);
+      await loadChangedFiles();
+      await loadBranches();
+    } catch (error) {
+      toast.error(error.message || 'Update failed');
+    } finally {
+      setIsPulling(false);
     }
   };
 
@@ -271,9 +367,64 @@ const GitSettings = ({ collection }) => {
               <input type="checkbox" id="autoPull" checked={autoPull} onChange={(e) => setAutoPull(e.target.checked)} />
               <label htmlFor="autoPull" className="toggle-label cursor-pointer">Auto Pull (every 2 minutes)</label>
             </div>
-            <p className="text-xs -mt-3 opacity-60">Automatically pull remote changes every 2 minutes</p>
+            <p className="text-xs -mt-3 opacity-60">Automatically pull remote changes when local tree is clean</p>
 
             <div><Button variant="primary" onClick={handleSave}>Save</Button></div>
+
+            <hr className="opacity-20" />
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Pull from branch</label>
+              <div className="flex gap-2">
+                <select
+                  className="textbox"
+                  value={pullBranch}
+                  onChange={(e) => setPullBranch(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  {branchInfo.current && !branchInfo.local.includes(branchInfo.current) && (
+                    <option value={branchInfo.current}>{branchInfo.current} (current)</option>
+                  )}
+                  {(() => {
+                    const localSet = new Set(branchInfo.local || []);
+                    const union = Array.from(new Set([...(branchInfo.local || []), ...(branchInfo.remote || [])]));
+                    if (union.length === 0) return <option value="">(no branches)</option>;
+                    return union.map((b) => {
+                      const onlyRemote = !localSet.has(b);
+                      const labelSuffix = [
+                        b === branchInfo.current ? ' (current)' : '',
+                        b === branchInfo.default ? ' [default]' : '',
+                        onlyRemote ? ' (remote only - switch in terminal first)' : ''
+                      ].join('');
+                      return (
+                        <option key={b} value={b} disabled={onlyRemote}>
+                          {b}{labelSuffix}
+                        </option>
+                      );
+                    });
+                  })()}
+                </select>
+                <select
+                  className="textbox"
+                  value={pullStrategy}
+                  onChange={(e) => setPullStrategy(e.target.value)}
+                  style={{ width: '110px', flexShrink: 0 }}
+                  title="Pull strategy"
+                >
+                  <option value="rebase">Rebase</option>
+                  <option value="ff-only">FF only</option>
+                  <option value="merge">Merge</option>
+                </select>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <Button variant="secondary" disabled={isPulling || !pullBranch} onClick={handlePull}>
+                  {isPulling ? 'Pulling...' : 'Pull'}
+                </Button>
+                <button className="text-xs opacity-60 hover:opacity-100 cursor-pointer" onClick={loadBranches}>
+                  Refresh branches
+                </button>
+              </div>
+            </div>
 
             <hr className="opacity-20" />
 
@@ -287,6 +438,20 @@ const GitSettings = ({ collection }) => {
                 onChange={(e) => setCommitMessage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && commitMessage.trim() && changedFiles.length > 0 && !isPushing) handleCommitAndPush(); }}
               />
+              <label className="block text-xs mt-2 mb-1 opacity-70">Push to branch</label>
+              <input
+                type="text"
+                className="textbox"
+                list="push-branch-options"
+                placeholder={branchInfo.current || 'current branch'}
+                value={pushBranch}
+                onChange={(e) => setPushBranch(e.target.value)}
+              />
+              <datalist id="push-branch-options">
+                {Array.from(new Set([...(branchInfo.local || []), ...(branchInfo.remote || [])])).map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
               <div className="mt-2">
                 <Button
                   variant="primary"
@@ -318,6 +483,24 @@ const GitSettings = ({ collection }) => {
 
         {/* RIGHT: Changes + Conflict Editor */}
         <div className="git-changes-col">
+          {remoteUpdate && remoteUpdate.behind > 0 && (
+            <div className="remote-update-banner">
+              <div className="flex-1">
+                <div className="text-sm font-medium">
+                  {remoteUpdate.behind} new commit{remoteUpdate.behind > 1 ? 's' : ''} on origin/{remoteUpdate.branch}
+                </div>
+                <div className="text-xs opacity-70">Remote has changes others have pushed. Update your local copy?</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" disabled={isPulling} onClick={handleOneClickUpdate}>
+                  {isPulling ? 'Updating...' : 'Update'}
+                </Button>
+                <button className="text-xs opacity-60 hover:opacity-100 cursor-pointer" onClick={() => setRemoteUpdate(null)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
               Changes {changedFiles.length > 0 && <span className="opacity-60">({changedFiles.length})</span>}
