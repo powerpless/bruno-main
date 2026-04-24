@@ -8,6 +8,13 @@ const config = {
     buildResources: 'resources',
     output: 'out'
   },
+  publish: [
+    {
+      provider: 'github',
+      owner: 'powerpless',
+      repo: 'bruno-main'
+    }
+  ],
   extraResources: [
     {
       from: 'resources/data/sample-collection.json',

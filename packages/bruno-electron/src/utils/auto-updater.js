@@ -5,10 +5,7 @@ const { ipcMain } = require('electron');
 const UPDATE_CONFIG = {
   provider: 'github',
   owner: process.env.GH_OWNER || 'powerpless',
-  repo: process.env.GH_REPO || 'bruno-main',
-  // Токен с правом read:Contents на этот репо (Settings → Developer settings → Fine-grained tokens)
-  token: process.env.GH_TOKEN,
-  private: true
+  repo: process.env.GH_REPO || 'bruno-main'
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
