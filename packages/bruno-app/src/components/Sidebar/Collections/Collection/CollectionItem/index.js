@@ -10,6 +10,7 @@ import {
   IconDots,
   IconFilePlus,
   IconFolderPlus,
+  IconFileImport,
   IconPlayerPlay,
   IconEdit,
   IconCopy,
@@ -155,6 +156,24 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
     if (targetItemPathname?.startsWith(draggedItemPathname)) return false;
 
     return true;
+  };
+
+  const handleImportBruFiles = async () => {
+    if (!isFolder) return;
+    try {
+      const result = await window.ipcRenderer.invoke('renderer:pick-and-import-bru-files', {
+        targetFolderPath: item.pathname
+      });
+      if (result.cancelled) return;
+      if (result.imported?.length > 0) {
+        toast.success(`Imported ${result.imported.length} file${result.imported.length > 1 ? 's' : ''} into ${item.name}`);
+      }
+      if (result.failed?.length > 0) {
+        toast.error(`Failed to import ${result.failed.length} file${result.failed.length > 1 ? 's' : ''}`);
+      }
+    } catch (e) {
+      toast.error(e.message || 'Import failed');
+    }
   };
 
   const importExternalFiles = async (files) => {
@@ -358,6 +377,12 @@ const CollectionItem = ({ item, collectionUid, collectionPathname, searchText })
           leftSection: IconFolderPlus,
           label: 'New Folder',
           onClick: () => setNewFolderModalOpen(true)
+        },
+        {
+          id: 'import-bru',
+          leftSection: IconFileImport,
+          label: 'Import .bru file...',
+          onClick: handleImportBruFiles
         },
         {
           id: 'run',

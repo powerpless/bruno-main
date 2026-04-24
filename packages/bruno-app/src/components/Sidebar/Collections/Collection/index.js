@@ -11,6 +11,7 @@ import {
   IconLoader2,
   IconFilePlus,
   IconFolderPlus,
+  IconFileImport,
   IconCopy,
   IconClipboard,
   IconPlayerPlay,
@@ -239,6 +240,24 @@ const Collection = ({ collection, searchText }) => {
     }
   });
 
+  const handleImportBruFiles = async () => {
+    ensureCollectionIsMounted();
+    try {
+      const result = await window.ipcRenderer.invoke('renderer:pick-and-import-bru-files', {
+        targetFolderPath: collection.pathname
+      });
+      if (result.cancelled) return;
+      if (result.imported?.length > 0) {
+        toast.success(`Imported ${result.imported.length} file${result.imported.length > 1 ? 's' : ''} into ${collection.name}`);
+      }
+      if (result.failed?.length > 0) {
+        toast.error(`Failed to import ${result.failed.length} file${result.failed.length > 1 ? 's' : ''}`);
+      }
+    } catch (e) {
+      toast.error(e.message || 'Import failed');
+    }
+  };
+
   const importExternalFilesToCollectionRoot = async (files) => {
     const ipc = window.ipcRenderer;
     if (!ipc || typeof ipc.getFilePath !== 'function') {
@@ -381,6 +400,12 @@ const Collection = ({ collection, searchText }) => {
         ensureCollectionIsMounted();
         setShowNewFolderModal(true);
       }
+    },
+    {
+      id: 'import-bru',
+      leftSection: IconFileImport,
+      label: 'Import .bru file...',
+      onClick: handleImportBruFiles
     },
     {
       id: 'run',

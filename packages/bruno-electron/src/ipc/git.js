@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const { exec } = require('child_process');
 const { cloneGitRepository, cloneSparseCollection, downloadCollectionFromGit, getCollectionGitRootPath, getCollectionGitRepoUrl, fetchRemotes, fetchChanges, fetchRemoteBranches, getCollectionGitBranches, addRemote, getChangedFilesInCollectionGit, stageChanges, commitChanges, getCurrentGitBranch, pushGitChanges, getUnstagedFileDiff, getStagedFileDiff, discardChanges, initGit, getBehindCount } = require('../utils/git');
@@ -331,6 +331,57 @@ const registerGitIpc = (mainWindow) => {
       return { behind: behindStatus.behind || 0, commits: behindStatus.commits || [], branch, hasRemote: true };
     } catch (error) {
       return { behind: 0, branch: null, hasRemote: false };
+    }
+  });
+
+  ipcMain.handle('renderer:pick-and-import-bru-files', async (event, { targetFolderPath }) => {
+    try {
+      if (!targetFolderPath || !fs.existsSync(targetFolderPath) || !fs.statSync(targetFolderPath).isDirectory()) {
+        throw new Error('Target is not a valid folder');
+      }
+
+      const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        title: 'Import .bru files',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          { name: 'Bruno files', extensions: ['bru', 'yml', 'yaml', 'json'] },
+          { name: 'All files', extensions: ['*'] }
+        ]
+      });
+
+      if (canceled || !filePaths || filePaths.length === 0) {
+        return { imported: [], failed: [], cancelled: true };
+      }
+
+      const imported = [];
+      const failed = [];
+      for (const source of filePaths) {
+        try {
+          const baseName = path.basename(source);
+          const ext = path.extname(baseName).toLowerCase();
+          if (!['.bru', '.yml', '.yaml', '.json'].includes(ext)) {
+            failed.push({ path: source, reason: 'unsupported extension' });
+            continue;
+          }
+
+          const { name, ext: parsedExt } = path.parse(baseName);
+          let destPath = path.join(targetFolderPath, baseName);
+          let counter = 1;
+          while (fs.existsSync(destPath)) {
+            destPath = path.join(targetFolderPath, `${name}-${counter}${parsedExt}`);
+            counter++;
+          }
+
+          fs.copyFileSync(source, destPath);
+          imported.push({ source, destPath, fileName: path.basename(destPath) });
+        } catch (e) {
+          failed.push({ path: source, reason: e.message });
+        }
+      }
+
+      return { imported, failed, cancelled: false };
+    } catch (error) {
+      return Promise.reject(error);
     }
   });
 
