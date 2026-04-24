@@ -104,8 +104,9 @@ const config = {
         arch: ['x64', 'arm64']
       }
     ],
-    sign: null,
-    publisherName: 'Bruno Software Inc'
+    sign: null
+    // publisherName intentionally omitted: builds are unsigned, so electron-updater
+    // must not verify publisher identity (it would silently reject unsigned installers).
   },
   nsis: {
     oneClick: false,

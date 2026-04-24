@@ -227,20 +227,34 @@ const registerGitIpc = (mainWindow) => {
       const gitRootPath = getCollectionGitRootPath(collectionPath);
       if (!gitRootPath) return { local: [], remote: [], current: null, default: null };
 
-      // Try to fetch from origin (best-effort; offline / no-remote must not break listing)
-      try {
-        const remotes = await fetchRemotes(gitRootPath);
-        if (remotes && remotes.length > 0) {
-          await fetchChanges(gitRootPath, 'origin');
+      const git = simpleGit(gitRootPath);
+
+      // Query origin directly via ls-remote so we see ALL remote branches,
+      // not just those cached in .git/refs/remotes (which depend on refspec / single-branch clones).
+      const lsRemoteActual = async () => {
+        try {
+          const remotes = await fetchRemotes(gitRootPath);
+          if (!remotes || remotes.length === 0) return [];
+          const raw = await git.listRemote(['--heads', 'origin']);
+          return raw
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => {
+              const [, ref] = line.split(/\s+/);
+              return ref?.replace('refs/heads/', '');
+            })
+            .filter(Boolean);
+        } catch {
+          // fall back to cached refs
+          return fetchRemoteBranches({ gitRootPath, remote: 'origin' }).catch(() => []);
         }
-      } catch (err) {
-        // continue with cached refs
-      }
+      };
 
       const [local, current, remote] = await Promise.all([
         getCollectionGitBranches(gitRootPath).catch(() => []),
         getCurrentGitBranch(gitRootPath).catch(() => null),
-        fetchRemoteBranches({ gitRootPath, remote: 'origin' }).catch(() => [])
+        lsRemoteActual()
       ]);
 
       let defaultBranch = null;

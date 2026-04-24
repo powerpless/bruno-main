@@ -11,8 +11,17 @@ const UPDATE_CONFIG = {
 
 const setupAutoUpdater = (mainWindow) => {
   autoUpdater.setFeedURL(UPDATE_CONFIG);
-  autoUpdater.autoDownload = false; // пользователь сам нажимает Download
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+
+  // Enable file logging for electron-updater so users can share logs when troubleshooting.
+  try {
+    const log = require('electron-log');
+    log.transports.file.level = 'info';
+    autoUpdater.logger = log;
+  } catch {
+    // electron-log is a transitive dep of electron-updater; if missing, continue without file logs
+  }
 
   const send = (channel, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -25,7 +34,7 @@ const setupAutoUpdater = (mainWindow) => {
   });
 
   autoUpdater.on('update-not-available', () => {
-    // тихо, не показываем ничего
+    // silent
   });
 
   autoUpdater.on('download-progress', (progress) => {
@@ -41,17 +50,34 @@ const setupAutoUpdater = (mainWindow) => {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('[auto-updater] error:', err.message);
+    console.error('[auto-updater] error:', err && err.stack || err);
+    send('main:update-error', { message: (err && err.message) || String(err) });
   });
 
-  // IPC от renderer
-  ipcMain.handle('renderer:download-update', () => autoUpdater.downloadUpdate());
-  ipcMain.handle('renderer:install-update', () => autoUpdater.quitAndInstall(false, true));
+  ipcMain.handle('renderer:download-update', async () => {
+    try {
+      const result = await autoUpdater.downloadUpdate();
+      return { ok: true, result };
+    } catch (err) {
+      send('main:update-error', { message: err?.message || 'Download failed' });
+      return Promise.reject(err);
+    }
+  });
 
-  // Проверяем обновления через 8 секунд после старта (чтобы не тормозить запуск)
+  ipcMain.handle('renderer:install-update', () => {
+    try {
+      autoUpdater.quitAndInstall(false, true);
+      return { ok: true };
+    } catch (err) {
+      send('main:update-error', { message: err?.message || 'Install failed' });
+      return Promise.reject(err);
+    }
+  });
+
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
       console.error('[auto-updater] check failed:', err.message);
+      send('main:update-error', { message: `Check failed: ${err.message || err}` });
     });
   }, 8000);
 };

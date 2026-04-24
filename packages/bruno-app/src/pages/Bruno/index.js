@@ -87,6 +87,7 @@ export default function Main() {
   const [updateInfo, setUpdateInfo] = useState(null); // { version }
   const [updateProgress, setUpdateProgress] = useState(null); // { percent }
   const [updateReady, setUpdateReady] = useState(null); // { version }
+  const [updateError, setUpdateError] = useState(null); // { message }
   const [updateDismissed, setUpdateDismissed] = useState(false);
 
   // Initialize event listeners
@@ -123,6 +124,12 @@ export default function Main() {
     const removeUpdateDownloaded = ipcRenderer.on('main:update-downloaded', (info) => {
       setUpdateProgress(null);
       setUpdateReady(info);
+      setUpdateError(null);
+    });
+
+    const removeUpdateError = ipcRenderer.on('main:update-error', (info) => {
+      setUpdateError(info);
+      setUpdateProgress(null);
     });
 
     return () => {
@@ -130,6 +137,7 @@ export default function Main() {
       removeUpdateAvailable();
       removeUpdateProgress();
       removeUpdateDownloaded();
+      removeUpdateError();
     };
   }, []);
 
@@ -146,7 +154,9 @@ export default function Main() {
     window.ipcRenderer.invoke('renderer:install-update');
   };
 
-  const showUpdateBanner = !updateDismissed && (updateInfo || updateProgress !== null || updateReady);
+  const showUpdateBanner = !updateDismissed && (updateInfo || updateProgress !== null || updateReady || updateError);
+  const isErrorState = !!updateError && !updateReady;
+  const bannerBg = isErrorState ? '#991b1b' : '#1e40af';
 
   return (
     // <ErrorCapture>
@@ -157,16 +167,26 @@ export default function Main() {
       {showUpdateBanner && (
         <div
           className="flex items-center gap-3 px-4 py-2 text-sm"
-          style={{ background: '#1e40af', color: '#fff', flexShrink: 0 }}
+          style={{ background: bannerBg, color: '#fff', flexShrink: 0 }}
         >
           {updateReady ? (
             <>
-              <span>✓ Версия {updateReady.version} загружена. Перезапусти приложение для установки.</span>
+              <span>Версия {updateReady.version} загружена. Перезапусти приложение для установки.</span>
               <button
                 onClick={handleInstallUpdate}
                 style={{ background: '#fff', color: '#1e40af', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
               >
                 Перезапустить
+              </button>
+            </>
+          ) : updateError ? (
+            <>
+              <span>Ошибка обновления: {updateError.message}</span>
+              <button
+                onClick={handleDownloadUpdate}
+                style={{ background: '#fff', color: '#991b1b', border: 'none', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
+              >
+                Повторить
               </button>
             </>
           ) : updateProgress !== null ? (
@@ -188,7 +208,10 @@ export default function Main() {
             </>
           ) : null}
           <button
-            onClick={() => setUpdateDismissed(true)}
+            onClick={() => {
+              setUpdateDismissed(true);
+              setUpdateError(null);
+            }}
             style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
           >
             ×
