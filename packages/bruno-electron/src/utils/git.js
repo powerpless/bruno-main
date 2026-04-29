@@ -242,16 +242,22 @@ const discardChanges = async (gitRootPath, filePaths) => {
   });
 };
 
-const commitChanges = async (gitRootPath, message) => {
+const commitChanges = async (gitRootPath, message, files) => {
   return new Promise((resolve, reject) => {
     const git = getSimpleGitInstanceForPath(gitRootPath);
-    git.commit(message, (err, res) => {
+    const cb = (err, res) => {
       if (err) {
         reject(err);
         return;
       }
       resolve(res);
-    });
+    };
+    if (Array.isArray(files) && files.length > 0) {
+      // Pathspec form scopes the commit to specific files even if other unrelated files are staged.
+      git.commit(message, files, cb);
+    } else {
+      git.commit(message, cb);
+    }
   });
 };
 
