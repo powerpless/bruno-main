@@ -8,8 +8,17 @@ import StatusBar from 'components/StatusBar';
 import AppTitleBar from 'components/AppTitleBar';
 import ApiSpecPanel from 'components/ApiSpecPanel';
 // import ErrorCapture from 'components/ErrorCapture';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { isElectron } from 'utils/common/platform';
+import {
+  setUpdateAvailable,
+  setUpdateProgress,
+  setUpdateDownloaded,
+  setUpdateError,
+  dismissUpdateBanner,
+  startUpdateDownload,
+  resetUpdateProgress
+} from 'providers/ReduxStore/slices/auto-update';
 import StyledWrapper from './StyledWrapper';
 import 'codemirror/theme/material.css';
 import 'codemirror/theme/monokai.css';
@@ -73,6 +82,7 @@ const TransientRequestModalsRenderer = ({ modals }) => {
 };
 
 export default function Main() {
+  const dispatch = useDispatch();
   const activeTabUid = useSelector((state) => state.tabs.activeTabUid);
   const activeApiSpecUid = useSelector((state) => state.apiSpec.activeApiSpecUid);
   const isDragging = useSelector((state) => state.app.isDragging);
@@ -83,12 +93,12 @@ export default function Main() {
   const mainSectionRef = useRef(null);
   const [showRosettaBanner, setShowRosettaBanner] = useState(false);
 
-  // Auto-update state
-  const [updateInfo, setUpdateInfo] = useState(null); // { version }
-  const [updateProgress, setUpdateProgress] = useState(null); // { percent }
-  const [updateReady, setUpdateReady] = useState(null); // { version }
-  const [updateError, setUpdateError] = useState(null); // { message }
-  const [updateDismissed, setUpdateDismissed] = useState(false);
+  // Auto-update state (from redux)
+  const updateInfo = useSelector((state) => state.autoUpdate.info);
+  const updateProgress = useSelector((state) => state.autoUpdate.progress);
+  const updateReady = useSelector((state) => state.autoUpdate.ready);
+  const updateError = useSelector((state) => state.autoUpdate.error);
+  const updateDismissed = useSelector((state) => state.autoUpdate.bannerDismissed);
 
   // Initialize event listeners
   useGrpcEventListeners();
@@ -113,23 +123,19 @@ export default function Main() {
     });
 
     const removeUpdateAvailable = ipcRenderer.on('main:update-available', (info) => {
-      setUpdateInfo(info);
-      setUpdateDismissed(false);
+      dispatch(setUpdateAvailable(info));
     });
 
     const removeUpdateProgress = ipcRenderer.on('main:update-progress', (progress) => {
-      setUpdateProgress(progress);
+      dispatch(setUpdateProgress(progress));
     });
 
     const removeUpdateDownloaded = ipcRenderer.on('main:update-downloaded', (info) => {
-      setUpdateProgress(null);
-      setUpdateReady(info);
-      setUpdateError(null);
+      dispatch(setUpdateDownloaded(info));
     });
 
     const removeUpdateError = ipcRenderer.on('main:update-error', (info) => {
-      setUpdateError(info);
-      setUpdateProgress(null);
+      dispatch(setUpdateError(info));
     });
 
     return () => {
@@ -142,11 +148,11 @@ export default function Main() {
   }, []);
 
   const handleDownloadUpdate = async () => {
-    setUpdateProgress({ percent: 0 });
+    dispatch(startUpdateDownload());
     try {
       await window.ipcRenderer.invoke('renderer:download-update');
     } catch (e) {
-      setUpdateProgress(null);
+      dispatch(resetUpdateProgress());
     }
   };
 
@@ -208,10 +214,7 @@ export default function Main() {
             </>
           ) : null}
           <button
-            onClick={() => {
-              setUpdateDismissed(true);
-              setUpdateError(null);
-            }}
+            onClick={() => dispatch(dismissUpdateBanner())}
             style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
           >
             ×

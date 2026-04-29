@@ -91,7 +91,7 @@ const registerGitIpc = (mainWindow) => {
     }
   });
 
-  ipcMain.handle('renderer:manual-git-commit-push', async (event, { collectionPath, commitMessage, targetBranch }) => {
+  ipcMain.handle('renderer:manual-git-commit-push', async (event, { collectionPath, commitMessage, targetBranch, selectedFiles }) => {
     try {
       const gitRootPath = getCollectionGitRootPath(collectionPath);
       if (!gitRootPath) throw new Error('Not a git repository');
@@ -102,6 +102,16 @@ const registerGitIpc = (mainWindow) => {
       const changes = await getChangedFilesInCollectionGit(gitRootPath, collectionPath);
       const allFiles = [...(changes.staged || []), ...(changes.unstaged || [])];
       if (allFiles.length === 0) throw new Error('No changes to commit');
+
+      // If a subset of files was selected on the UI, restrict the commit to those.
+      const selectedSet = Array.isArray(selectedFiles) && selectedFiles.length > 0
+        ? new Set(selectedFiles)
+        : null;
+      const filesToCommit = selectedSet
+        ? allFiles.filter((f) => selectedSet.has(f.path))
+        : allFiles;
+
+      if (filesToCommit.length === 0) throw new Error('No changes to commit');
 
       const currentBranch = await getCurrentGitBranch(gitRootPath);
       const effectiveTarget = (targetBranch && targetBranch.trim()) || currentBranch;
@@ -121,9 +131,11 @@ const registerGitIpc = (mainWindow) => {
         }
       }
 
-      const filePaths = allFiles.map((file) => path.join(gitRootPath, file.path));
+      const filePaths = filesToCommit.map((file) => path.join(gitRootPath, file.path));
       await stageChanges(gitRootPath, filePaths);
-      await commitChanges(gitRootPath, commitMessage);
+      // When a subset is committed, scope the commit explicitly to those file paths so that any
+      // unrelated already-staged files don't get folded into the same commit.
+      await commitChanges(gitRootPath, commitMessage, selectedSet ? filePaths : undefined);
 
       try {
         await pushGitChanges(mainWindow, { gitRootPath, processUid: uuid(), remote: 'origin', remoteBranch: effectiveTarget });
