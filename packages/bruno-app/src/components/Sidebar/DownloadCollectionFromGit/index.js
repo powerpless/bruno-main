@@ -110,7 +110,8 @@ const DownloadCollectionFromGit = ({ onClose, onFinish }) => {
     initialValues: {
       repositoryUrl: '',
       targetLocation: defaultLocation,
-      collectionPath: ''
+      collectionPath: '',
+      branch: ''
     },
     validationSchema: Yup.object({
       repositoryUrl: Yup.string().required('Repository URL is required'),
@@ -120,14 +121,15 @@ const DownloadCollectionFromGit = ({ onClose, onFinish }) => {
       try {
         setView('progress');
         downloadInProgress();
-        const { repositoryUrl, targetLocation, collectionPath } = values;
+        const { repositoryUrl, targetLocation, collectionPath, branch } = values;
 
         await dispatch(
           downloadCollectionFromGit({
             url: repositoryUrl,
             targetPath: targetLocation,
             processUid,
-            collectionPath: collectionPath.trim()
+            collectionPath: collectionPath.trim(),
+            branch: branch?.trim()
           })
         );
 
@@ -275,6 +277,25 @@ const DownloadCollectionFromGit = ({ onClose, onFinish }) => {
                 />
                 <div className="mt-1 text-xs opacity-60">
                   Path to the collection folder inside the repository. Leave empty to download the entire repository.
+                </div>
+                <label htmlFor="branch" className="block font-semibold mt-3">
+                  Branch
+                </label>
+                <input
+                  id="branch"
+                  type="text"
+                  name="branch"
+                  className="block textbox mt-2 w-full"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  placeholder="main"
+                  onChange={formik.handleChange}
+                  value={formik.values.branch || ''}
+                />
+                <div className="mt-1 text-xs opacity-60">
+                  Branch to download from. Leave empty to use the repository's default branch.
                 </div>
                 <label htmlFor="target-location" className="block font-semibold mt-3">
                   Target Directory

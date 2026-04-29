@@ -111,7 +111,8 @@ const CloneGitRepository = ({ onClose, onFinish, collectionRepositoryUrl = null 
     initialValues: {
       repositoryUrl: collectionRepositoryUrl || '',
       collectionLocation: defaultLocation,
-      collectionPath: ''
+      collectionPath: '',
+      branch: ''
     },
     validationSchema: Yup.object({
       repositoryUrl: Yup.string().required('Repository URL is required'),
@@ -121,12 +122,12 @@ const CloneGitRepository = ({ onClose, onFinish, collectionRepositoryUrl = null 
       try {
         setView('progress');
         cloneInProgress();
-        const { repositoryUrl, collectionLocation, collectionPath } = values;
+        const { repositoryUrl, collectionLocation, collectionPath, branch } = values;
 
         const repoName = getRepoNameFromUrl(repositoryUrl);
         const targetPath = path.join(collectionLocation, repoName);
 
-        await dispatch(cloneGitRepository({ url: values.repositoryUrl, path: targetPath, processUid, collectionPath: collectionPath.trim() }));
+        await dispatch(cloneGitRepository({ url: values.repositoryUrl, path: targetPath, processUid, collectionPath: collectionPath.trim(), branch: branch?.trim() }));
 
         cloneFinished();
         dispatch(removeGitOperationProgress(processUid));
@@ -291,6 +292,25 @@ const CloneGitRepository = ({ onClose, onFinish, collectionRepositoryUrl = null 
                 />
                 <div className="mt-1 text-xs opacity-60">
                   Path to the collection folder inside the repository. Leave empty to clone the entire repository.
+                </div>
+                <label htmlFor="branch" className="block font-semibold mt-3">
+                  Branch
+                </label>
+                <input
+                  id="branch"
+                  type="text"
+                  name="branch"
+                  className="block textbox mt-2 w-full"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  placeholder="main"
+                  onChange={formik.handleChange}
+                  value={formik.values.branch || ''}
+                />
+                <div className="mt-1 text-xs opacity-60">
+                  Branch to clone. Leave empty to use the repository's default branch.
                 </div>
                 <label htmlFor="collection-location" className="block font-semibold mt-3">
                   Location

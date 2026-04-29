@@ -18,15 +18,15 @@ const isPushRejected = (error) => {
 };
 
 const registerGitIpc = (mainWindow) => {
-  ipcMain.handle('renderer:clone-git-repository', async (event, { url, path, processUid, collectionPath }) => {
+  ipcMain.handle('renderer:clone-git-repository', async (event, { url, path, processUid, collectionPath, branch }) => {
     let directoryCreated = false;
     try {
       await createDirectory(path);
       directoryCreated = true;
       if (collectionPath && collectionPath.trim()) {
-        await cloneSparseCollection(mainWindow, { url, path, collectionPath: collectionPath.trim(), processUid });
+        await cloneSparseCollection(mainWindow, { url, path, collectionPath: collectionPath.trim(), processUid, branch });
       } else {
-        await cloneGitRepository(mainWindow, { url, path, processUid });
+        await cloneGitRepository(mainWindow, { url, path, processUid, branch });
       }
       return 'Repository cloned successfully';
     } catch (error) {
@@ -37,11 +37,11 @@ const registerGitIpc = (mainWindow) => {
     }
   });
 
-  ipcMain.handle('renderer:download-collection-from-git', async (event, { url, targetPath, processUid, collectionPath }) => {
+  ipcMain.handle('renderer:download-collection-from-git', async (event, { url, targetPath, processUid, collectionPath, branch }) => {
     try {
       const fsPromises = require('fs/promises');
       await fsPromises.mkdir(targetPath, { recursive: true });
-      await downloadCollectionFromGit(mainWindow, { url, targetPath, collectionPath: collectionPath?.trim() || '', processUid });
+      await downloadCollectionFromGit(mainWindow, { url, targetPath, collectionPath: collectionPath?.trim() || '', processUid, branch });
       return 'Collection files downloaded successfully';
     } catch (error) {
       return Promise.reject(error);

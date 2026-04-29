@@ -707,11 +707,15 @@ const getCollectionGitData = async (gitRootPath, collectionPath) => {
 
 const cloneGitRepository = async (win, data) => {
   return new Promise((resolve, reject) => {
-    const { url, path, processUid } = data;
+    const { url, path, processUid, branch } = data;
     const git = getSimpleGitInstanceForPath(path);
 
     git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
-    git.clone(url, path, ['--progress'], (err, res) => {
+    const cloneArgs = ['--progress'];
+    if (branch && branch.trim()) {
+      cloneArgs.push('--branch', branch.trim());
+    }
+    git.clone(url, path, cloneArgs, (err, res) => {
       if (err) {
         reject(err);
         return;
@@ -721,12 +725,16 @@ const cloneGitRepository = async (win, data) => {
   });
 };
 
-const cloneSparseCollection = async (win, { url, path: targetPath, collectionPath, processUid }) => {
+const cloneSparseCollection = async (win, { url, path: targetPath, collectionPath, processUid, branch }) => {
   const git = simpleGit(targetPath);
   git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
 
   // Clone without checking out any files — no working tree files created yet
-  await git.clone(url, targetPath, ['--no-checkout', '--progress']);
+  const cloneArgs = ['--no-checkout', '--progress'];
+  if (branch && branch.trim()) {
+    cloneArgs.push('--branch', branch.trim());
+  }
+  await git.clone(url, targetPath, cloneArgs);
 
   // Configure sparse-checkout (non-cone mode: only the exact path, no parent dir files)
   await git.raw(['sparse-checkout', 'set', '--no-cone', collectionPath + '/']);
@@ -751,7 +759,7 @@ const copyCollectionFiles = async (sourceDir, targetDir) => {
   }
 };
 
-const downloadCollectionFromGit = async (win, { url, targetPath, collectionPath, processUid }) => {
+const downloadCollectionFromGit = async (win, { url, targetPath, collectionPath, processUid, branch }) => {
   const os = require('os');
   const fsPromises = require('fs/promises');
   const tempBase = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'bruno-git-dl-'));
@@ -759,7 +767,11 @@ const downloadCollectionFromGit = async (win, { url, targetPath, collectionPath,
   try {
     const git = simpleGit();
     git.outputHandler(handleGitOutput({ win, processUid, sendStdout: true }));
-    await git.clone(url, repoDir, ['--progress']);
+    const cloneArgs = ['--progress'];
+    if (branch && branch.trim()) {
+      cloneArgs.push('--branch', branch.trim());
+    }
+    await git.clone(url, repoDir, cloneArgs);
     const sourceDir = collectionPath && collectionPath.trim()
       ? path.join(repoDir, collectionPath.trim())
       : repoDir;
